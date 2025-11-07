@@ -8,6 +8,8 @@ import {
   orderBy,
   limit,
   Timestamp,
+  doc,
+  updateDoc,
 } from 'firebase/firestore';
 import {
   UserUsageDocument,
@@ -15,6 +17,7 @@ import {
   UsageByModel,
   UsageByDate,
   UsageEntry,
+  AppUser,
 } from '@/types/usage';
 
 /**
@@ -52,6 +55,40 @@ export async function getAllUserUsage(): Promise<UserUsageDocument[]> {
     console.error('Error fetching user usage:', error);
     throw error;
   }
+}
+
+export async function getAllUsers(): Promise<AppUser[]> {
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        userId: doc.id, // The doc ID is the userId
+        email: data.email,
+        isApproved: data.isApproved,
+        username: data.username,
+        // --- THIS IS THE FIX ---
+        // Parse the string directly, as it is not a Timestamp
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    throw error;
+  }
+}
+
+/**
+ * Approve a user by setting isApproved to true
+ */
+export async function approveUser(userId: string): Promise<void> {
+  const userDocRef = doc(db, 'users', userId);
+  await updateDoc(userDocRef, {
+    isApproved: true,
+  });
 }
 
 /**

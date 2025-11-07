@@ -49,3 +49,11 @@ export interface UsageByDate {
   tokens: number;
 }
 
+export interface AppUser {
+  userId: string;
+  email: string;
+  isApproved: boolean;
+  username: string;
+  createdAt: Date;
+}
+
