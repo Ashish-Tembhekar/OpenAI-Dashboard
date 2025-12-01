@@ -10,6 +10,18 @@ export interface UsageEntry {
   calls: number;
 }
 
+export interface TtsUsageEntry {
+  timestamp: Date;
+  device: string;
+  cpuMemoryUsedMb: number;
+  gpuMemoryUsedMb: number;
+  elapsedTimeSeconds: number;
+  estimatedTokens: number;
+  textLength: number;
+  numChunks: number;
+  tokensPerSecond: number;
+}
+
 export interface UserUsageDocument {
   userId: string;
   totalCalls: number;
@@ -20,6 +32,13 @@ export interface UserUsageDocument {
   lastUpdated: Date;
   createdAt: Date;
   recentUsage: UsageEntry[];
+  // TTS fields
+  ttsUsageCalls?: number;
+  ttsTotalTokens?: number;
+  ttsTotalCpuMemoryMb?: number;
+  ttsTotalGpuMemoryMb?: number;
+  ttsTotalElapsedSeconds?: number;
+  recentTtsUsage?: TtsUsageEntry[];
 }
 
 export interface AggregatedUsage {

@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { OverviewCards } from '@/components/OverviewCards';
 import { UsageCharts } from '@/components/UsageCharts';
+import { TtsCharts } from '@/components/TtsCharts';
 import { UserUsageTable } from '@/components/UserUsageTable';
 import {
   getAllUserUsage,
   calculateAggregatedUsage,
+  calculateAggregatedTtsUsage,
   getAllUsers, // New
   approveUser, // New
 } from '@/services/usageService';
@@ -236,7 +238,19 @@ export default function Dashboard() {
               aggregatedUsage={aggregatedUsage}
               loading={loading}
             />
-            <UsageCharts userUsageList={userUsageList} loading={loading} />
+
+            {/* API Usage Charts */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-foreground mb-4">API Usage Analytics</h2>
+              <UsageCharts userUsageList={userUsageList} loading={loading} />
+            </div>
+
+            {/* TTS Usage Charts */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-foreground mb-4">TTS Usage Analytics</h2>
+              <TtsCharts userUsageList={userUsageList} loading={loading} />
+            </div>
+
             <UserUsageTable userUsageList={userUsageList} loading={loading} />
           </>
         )}

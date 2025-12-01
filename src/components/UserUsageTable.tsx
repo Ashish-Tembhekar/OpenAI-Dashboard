@@ -10,22 +10,44 @@ interface UserUsageTableProps {
   loading: boolean;
 }
 
+type TabType = 'api' | 'tts';
+
 export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'cost' | 'calls' | 'tokens'>('cost');
+  const [activeTab, setActiveTab] = useState<TabType>('api');
 
   const sortedUsers = [...userUsageList].sort((a, b) => {
-    switch (sortBy) {
-      case 'cost':
-        return b.totalCostUsd - a.totalCostUsd;
-      case 'calls':
-        return b.totalCalls - a.totalCalls;
-      case 'tokens':
-        return b.totalTokens - a.totalTokens;
-      default:
-        return 0;
+    if (activeTab === 'api') {
+      switch (sortBy) {
+        case 'cost':
+          return b.totalCostUsd - a.totalCostUsd;
+        case 'calls':
+          return b.totalCalls - a.totalCalls;
+        case 'tokens':
+          return b.totalTokens - a.totalTokens;
+        default:
+          return 0;
+      }
+    } else {
+      // TTS sorting
+      switch (sortBy) {
+        case 'calls':
+          return (b.ttsUsageCalls || 0) - (a.ttsUsageCalls || 0);
+        case 'tokens':
+          return (b.ttsTotalTokens || 0) - (a.ttsTotalTokens || 0);
+        case 'cost':
+          return (b.ttsTotalElapsedSeconds || 0) - (a.ttsTotalElapsedSeconds || 0);
+        default:
+          return 0;
+      }
     }
   });
+
+  // Filter users based on active tab
+  const filteredUsers = activeTab === 'tts'
+    ? sortedUsers.filter(user => user.ttsUsageCalls && user.ttsUsageCalls > 0)
+    : sortedUsers;
 
   if (loading && userUsageList.length === 0) {
     return (
@@ -39,20 +61,83 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
     <div className="bg-card border rounded-lg overflow-hidden">
       <div className="p-6 border-b">
         <h2 className="text-lg font-semibold text-foreground mb-4">Per-User Usage</h2>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('api')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'api'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            API Usage
+          </button>
+          <button
+            onClick={() => setActiveTab('tts')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'tts'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            TTS Usage
+          </button>
+        </div>
+
+        {/* Sort Options */}
         <div className="flex gap-2">
-          {(['cost', 'calls', 'tokens'] as const).map((option) => (
-            <button
-              key={option}
-              onClick={() => setSortBy(option)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                sortBy === option
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              Sort by {option.charAt(0).toUpperCase() + option.slice(1)}
-            </button>
-          ))}
+          {activeTab === 'api' ? (
+            <>
+              {(['cost', 'calls', 'tokens'] as const).map((option) => (
+                <button
+                  key={option}
+                  onClick={() => setSortBy(option)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    sortBy === option
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  Sort by {option.charAt(0).toUpperCase() + option.slice(1)}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setSortBy('calls')}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  sortBy === 'calls'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                Sort by Calls
+              </button>
+              <button
+                onClick={() => setSortBy('tokens')}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  sortBy === 'tokens'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                Sort by Tokens
+              </button>
+              <button
+                onClick={() => setSortBy('cost')}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  sortBy === 'cost'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                Sort by Time
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -63,15 +148,34 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                 User ID
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                Total Cost
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                API Calls
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                Total Tokens
-              </th>
+              {activeTab === 'api' ? (
+                <>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Total Cost
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    API Calls
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Total Tokens
+                  </th>
+                </>
+              ) : (
+                <>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    TTS Calls
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Total Tokens
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Total Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Memory (CPU/GPU)
+                  </th>
+                </>
+              )}
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                 Last Updated
               </th>
@@ -81,21 +185,40 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
             </tr>
           </thead>
           <tbody>
-            {sortedUsers.map((user) => (
+            {filteredUsers.map((user) => (
               <tbody key={user.userId}>
                 <tr className="border-b hover:bg-muted/50 transition-colors">
                   <td className="px-6 py-4 text-sm font-mono text-foreground">
                     {user.userId.substring(0, 12)}...
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                    {formatCost(user.totalCostUsd)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    {user.totalCalls.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    {formatTokens(user.totalTokens)}
-                  </td>
+                  {activeTab === 'api' ? (
+                    <>
+                      <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                        {formatCost(user.totalCostUsd)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {user.totalCalls.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {formatTokens(user.totalTokens)}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {(user.ttsUsageCalls || 0).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {formatTokens(user.ttsTotalTokens || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {(user.ttsTotalElapsedSeconds || 0).toFixed(2)}s
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {(user.ttsTotalCpuMemoryMb || 0).toFixed(1)} / {(user.ttsTotalGpuMemoryMb || 0).toFixed(1)} MB
+                      </td>
+                    </>
+                  )}
                   <td className="px-6 py-4 text-sm text-muted-foreground">
                     {formatDate(user.lastUpdated)}
                   </td>
@@ -119,8 +242,11 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
 
                 {expandedUserId === user.userId && (
                   <tr className="bg-muted/30 border-b">
-                    <td colSpan={6} className="px-6 py-4">
+                    <td colSpan={activeTab === 'api' ? 6 : 7} className="px-6 py-4">
                       <div className="space-y-3">
+                        {activeTab === 'api' ? (
+                          // API Usage Details
+                          <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div>
                             <p className="text-xs text-muted-foreground">Input Tokens</p>
@@ -151,7 +277,7 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
                         {user.recentUsage.length > 0 && (
                           <div className="mt-4 pt-4 border-t">
                             <p className="text-xs font-semibold text-muted-foreground mb-2">
-                              Recent Usage
+                              Recent API Usage
                             </p>
                             <div className="space-y-2 max-h-48 overflow-y-auto">
                               {user.recentUsage.slice(0, 5).map((entry, idx) => (
@@ -170,6 +296,78 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
                             </div>
                           </div>
                         )}
+                          </>
+                        ) : (
+                          // TTS Usage Details
+                          <>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                              <div>
+                                <p className="text-xs text-muted-foreground">TTS Calls</p>
+                                <p className="text-sm font-semibold">
+                                  {user.ttsUsageCalls?.toLocaleString() || 0}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Total Tokens</p>
+                                <p className="text-sm font-semibold">
+                                  {formatTokens(user.ttsTotalTokens || 0)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">CPU Memory</p>
+                                <p className="text-sm font-semibold">
+                                  {(user.ttsTotalCpuMemoryMb || 0).toFixed(2)} MB
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">GPU Memory</p>
+                                <p className="text-sm font-semibold">
+                                  {(user.ttsTotalGpuMemoryMb || 0).toFixed(2)} MB
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Total Time</p>
+                                <p className="text-sm font-semibold">
+                                  {(user.ttsTotalElapsedSeconds || 0).toFixed(2)}s
+                                </p>
+                              </div>
+                            </div>
+
+                            {user.recentTtsUsage && user.recentTtsUsage.length > 0 && (
+                              <div className="mt-4 pt-4 border-t">
+                                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                  Recent TTS Usage
+                                </p>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                  {user.recentTtsUsage.slice(0, 5).map((entry, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="text-xs bg-background p-3 rounded"
+                                    >
+                                      <div className="flex justify-between items-start mb-1">
+                                        <span className="font-semibold text-foreground">
+                                          {entry.device} • {entry.estimatedTokens} tokens
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          {formatDate(entry.timestamp)}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-muted-foreground">
+                                        <span>CPU: {entry.cpuMemoryUsedMb.toFixed(1)} MB</span>
+                                        <span>GPU: {entry.gpuMemoryUsedMb.toFixed(1)} MB</span>
+                                        <span>Time: {entry.elapsedTimeSeconds.toFixed(2)}s</span>
+                                        <span>Speed: {entry.tokensPerSecond.toFixed(2)} t/s</span>
+                                      </div>
+                                      <div className="mt-1 text-muted-foreground">
+                                        Text length: {entry.textLength} • Chunks: {entry.numChunks}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -180,9 +378,11 @@ export function UserUsageTable({ userUsageList, loading }: UserUsageTableProps) 
         </table>
       </div>
 
-      {sortedUsers.length === 0 && (
+      {filteredUsers.length === 0 && (
         <div className="p-6 text-center text-muted-foreground">
-          No usage data available yet
+          {activeTab === 'tts'
+            ? 'No TTS usage data available yet'
+            : 'No usage data available yet'}
         </div>
       )}
     </div>
